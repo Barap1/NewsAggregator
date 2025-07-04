@@ -30,10 +30,23 @@ def visit(links):
     sleep(delay_amt)
     print(f"total links found: {len(links)-1}")
 
-
+def disallow_links(url):
+    try:
+        response = requests.get(f'{url}/robots.txt', timeout=2)
+        response.raise_for_status()
+        for line in response.text.splitlines():
+            if line.startswith('Disallow:'):
+                path = line.split(':', 1)[1].strip()
+                disallow.append(url + path)
+    except:
+        print(f"error checking robots.txt for: {url}")
+    
 links=['https://www.caltech.edu']
-disallow=[] #if we want it for later
+disallow=[]
 browse_limit = 30
 delay_amt = .5
+
+disallow_links('https://www.caltech.edu')
+print(disallow)
 print(f"starting with browse limit: {browse_limit} and delay amount: {delay_amt} sec on {links}")
 visit(links)
