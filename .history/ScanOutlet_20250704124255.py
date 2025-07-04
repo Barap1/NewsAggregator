@@ -4,11 +4,13 @@ import re
 import google.generativeai as genai
 import time
 import os
+from datetime import datetime
 
 def get_api_key():
+    """Get API key from environment variable"""
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
-        raise ValueError("key not put")
+        raise ValueError("GEMINI_API_KEY environment variable not set. Please set it with your API key.")
     return api_key
 
 def scan_google_news_live(keyword):
@@ -140,20 +142,25 @@ def summarize_articles_with_gemini(articles_with_content, keyword):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"{str(e)}"
+        return f"Error generating summary: {str(e)}"
 
 def save_summary_to_file(summary, keyword):
-    filename = f"news_summary_{keyword}.txt"
+    """Save the summary to a text file with timestamp"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"news_summary_{keyword}_{timestamp}.txt"
     
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(f"NEWS SUMMARY FOR '{keyword.upper()}'\n")
+            f.write("=" * 60 + "\n")
+            f.write(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 60 + "\n\n")
             f.write(summary)
         
-        print(f"saved to {filename}")
+        print(f"Summary saved to: {filename}")
         return filename
     except Exception as e:
-        print(f"error {str(e)}")
+        print(f"Error saving summary to file: {str(e)}")
         return None
 
 if __name__ == "__main__":
@@ -188,10 +195,15 @@ if __name__ == "__main__":
               """)
         print(summary)
         
+        # Save summary to file
         save_summary_to_file(summary, keyword)
-
+        
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+        print("Please set your GEMINI_API_KEY environment variable.")
+        print("You can do this by running: set GEMINI_API_KEY=your_api_key_here")
     except Exception as e:
-        print(f"error {e}")
+        print(f"An error occurred: {e}")
     
     save_summary_to_file(summary, keyword)
 

@@ -4,11 +4,13 @@ import re
 import google.generativeai as genai
 import time
 import os
+from datetime import datetime
 
 def get_api_key():
+    """Get API key from environment variable"""
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
-        raise ValueError("key not put")
+        raise ValueError("GEMINI_API_KEY environment variable not set. Please set it with your API key.")
     return api_key
 
 def scan_google_news_live(keyword):
@@ -140,58 +142,36 @@ def summarize_articles_with_gemini(articles_with_content, keyword):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"{str(e)}"
-
-def save_summary_to_file(summary, keyword):
-    filename = f"news_summary_{keyword}.txt"
-    
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"NEWS SUMMARY FOR '{keyword.upper()}'\n")
-            f.write(summary)
-        
-        print(f"saved to {filename}")
-        return filename
-    except Exception as e:
-        print(f"error {str(e)}")
-        return None
+        return f"Error generating summary: {str(e)}"
 
 if __name__ == "__main__":
-    try:
-        keyword = input("??: ")
-        
-        print(f"searching for '{keyword}' on gnews")
-        google_results = scan_google_news_live(keyword)
-        print(f"before {len(google_results)}")
-        
-        print("filtering articles")
-        filtered_results = filter_headlines_with_gemini(google_results, keyword)
-        print(f"after {len(filtered_results)} ")
-
-        print("\n fetching contents")
-        articles_with_content = []
-        for i, article in enumerate(filtered_results, 1):
-            print(f"  getting {article['headline'][:60]}")
-            content = fetch_article_content(article['link'])
-            articles_with_content.append({
-                'headline': article['headline'],
-                'link': article['link'],
-                'content': content
-            })
-            time.sleep(.5)
-        
-        print("\ncreating summary")
-        summary = summarize_articles_with_gemini(articles_with_content, keyword)
-      
-        print(f"""
-              NEWS SUMMARY FOR '{keyword.upper()}'
-              """)
-        print(summary)
-        
-        save_summary_to_file(summary, keyword)
-
-    except Exception as e:
-        print(f"error {e}")
+    keyword = input("??: ")
     
-    save_summary_to_file(summary, keyword)
+    print(f"searching for '{keyword}' on gnews")
+    google_results = scan_google_news_live(keyword)
+    print(f"before {len(google_results)}")
+    
+    print("filtering articles")
+    filtered_results = filter_headlines_with_gemini(google_results, keyword)
+    print(f"after {len(filtered_results)} ")
+
+    print("\n fetching contents")
+    articles_with_content = []
+    for i, article in enumerate(filtered_results, 1):
+        print(f"  getting {article['headline'][:60]}")
+        content = fetch_article_content(article['link'])
+        articles_with_content.append({
+            'headline': article['headline'],
+            'link': article['link'],
+            'content': content
+        })
+        time.sleep(.5)
+    
+    print("\ncreating summary")
+    summary = summarize_articles_with_gemini(articles_with_content, keyword)
+  
+    print(f"""
+          NEWS SUMMARY FOR '{keyword.upper()}'
+          """)
+    print(summary)
 

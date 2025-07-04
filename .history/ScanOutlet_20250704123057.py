@@ -3,13 +3,6 @@ from bs4 import BeautifulSoup
 import re
 import google.generativeai as genai
 import time
-import os
-
-def get_api_key():
-    api_key = os.getenv('GEMINI_API_KEY')
-    if not api_key:
-        raise ValueError("key not put")
-    return api_key
 
 def scan_google_news_live(keyword):
     base_url = "https://news.google.com/search"
@@ -28,7 +21,7 @@ def scan_google_news_live(keyword):
 
 
     for card in soup.find_all('div', class_='m5k28'):
-        if len(articles) >= 10:  # for the sake of me free api limit
+        if len(articles) >= 5:  # Limit to 5 articles
             break
         a_tag = card.find('a', class_='JtKRv')
         if not a_tag or not a_tag.has_attr('href'):
@@ -44,7 +37,7 @@ def scan_google_news_live(keyword):
     return articles
 
 def filter_headlines_with_gemini(headlines, keyword):
-    genai.configure(api_key=get_api_key())
+    genai.configure(api_key="AIzaSyBnFqmZ1ygrYSfbVRtYSkxujOhVW3pT-Ow")
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
 
     prompt = (
@@ -63,6 +56,7 @@ def filter_headlines_with_gemini(headlines, keyword):
     return filtered
 
 def fetch_article_content(url):
+    """Fetch and extract the main content from an article URL"""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -72,11 +66,14 @@ def fetch_article_content(url):
         
         soup = BeautifulSoup(response.text, 'html.parser')
         
+        # Remove script and style elements
         for script in soup(["script", "style"]):
             script.decompose()
         
+        # Try to find the main content using common article selectors
         content = ""
         
+        # Common article content selectors
         article_selectors = [
             'article', 
             '.article-content', 
@@ -95,26 +92,31 @@ def fetch_article_content(url):
                 content = article_element.get_text(strip=True)
                 break
         
+        # If no specific article content found, try to extract from paragraphs
         if not content:
             paragraphs = soup.find_all('p')
             content = ' '.join([p.get_text(strip=True) for p in paragraphs])
         
+        # Clean up the content
         content = re.sub(r'\s+', ' ', content)
         content = content.strip()
         
+        # Limit content length to avoid hitting API limits
         if len(content) > 5000:
             content = content[:5000] + "..."
             
         return content
         
     except Exception as e:
-        print(f"error from {url}: {str(e)}")
+        print(f"Error fetching content from {url}: {str(e)}")
         return ""
 
 def summarize_articles_with_gemini(articles_with_content, keyword):
-    genai.configure(api_key=get_api_key())
+    """Summarize all articles using Google AI"""
+    genai.configure(api_key="AIzaSyBnFqmZ1ygrYSfbVRtYSkxujOhVW3pT-Ow")
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
     
+    # Prepare the content for summarization
     articles_text = ""
     for i, article in enumerate(articles_with_content, 1):
         articles_text += f"\n\n--- Article {i}: {article['headline']} ---\n"
@@ -140,58 +142,38 @@ def summarize_articles_with_gemini(articles_with_content, keyword):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"{str(e)}"
-
-def save_summary_to_file(summary, keyword):
-    filename = f"news_summary_{keyword}.txt"
-    
-    try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"NEWS SUMMARY FOR '{keyword.upper()}'\n")
-            f.write(summary)
-        
-        print(f"saved to {filename}")
-        return filename
-    except Exception as e:
-        print(f"error {str(e)}")
-        return None
+        return f"Error generating summary: {str(e)}"
 
 if __name__ == "__main__":
-    try:
-        keyword = input("??: ")
-        
-        print(f"searching for '{keyword}' on gnews")
-        google_results = scan_google_news_live(keyword)
-        print(f"before {len(google_results)}")
-        
-        print("filtering articles")
-        filtered_results = filter_headlines_with_gemini(google_results, keyword)
-        print(f"after {len(filtered_results)} ")
-
-        print("\n fetching contents")
-        articles_with_content = []
-        for i, article in enumerate(filtered_results, 1):
-            print(f"  getting {article['headline'][:60]}")
-            content = fetch_article_content(article['link'])
-            articles_with_content.append({
-                'headline': article['headline'],
-                'link': article['link'],
-                'content': content
-            })
-            time.sleep(.5)
-        
-        print("\ncreating summary")
-        summary = summarize_articles_with_gemini(articles_with_content, keyword)
-      
-        print(f"""
-              NEWS SUMMARY FOR '{keyword.upper()}'
-              """)
-        print(summary)
-        
-        save_summary_to_file(summary, keyword)
-
-    except Exception as e:
-        print(f"error {e}")
+    keyword = "tech" #input("Enter keyword to search on Google News: ")
     
-    save_summary_to_file(summary, keyword)
+    print(f"🔍 Searching for '{keyword}' on Google News...")
+    google_results = scan_google_news_live(keyword)
+    print(f"📰 Found {len(google_results)} articles")
+    
+    print("🤖 Filtering articles with AI...")
+    filtered_results = filter_headlines_with_gemini(google_results, keyword)
+    print(f"✅ Filtered to {len(filtered_results)} relevant articles")
+    
+    print("\n📖 Fetching article content...")
+    articles_with_content = []
+    for i, article in enumerate(filtered_results, 1):
+        print(f"   [{i}/{len(filtered_results)}] Fetching: {article['headline'][:60]}...")
+        content = fetch_article_content(article['link'])
+        articles_with_content.append({
+            'headline': article['headline'],
+            'link': article['link'],
+            'content': content
+        })
+        # Add a small delay to be respectful to the servers
+        time.sleep(1)
+    
+    print("\n🧠 Generating comprehensive summary...")
+    summary = summarize_articles_with_gemini(articles_with_content, keyword)
+    
+    print("\n" + "="*80)
+    print(f"📋 NEWS SUMMARY FOR '{keyword.upper()}'")
+    print("="*80)
+    print(summary)
+    print("="*80)
 
