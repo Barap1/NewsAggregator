@@ -48,5 +48,7 @@ delay_amt = .5
 
 disallow_links('https://www.caltech.edu')
 print(disallow)
+
+
 print(f"starting with browse limit: {browse_limit} and delay amount: {delay_amt} sec on {links}")
 visit(links)
