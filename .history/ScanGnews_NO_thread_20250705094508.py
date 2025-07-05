@@ -28,7 +28,7 @@ def scan_google_news_live(keyword):
 
 
     for card in soup.find_all('div', class_='m5k28'):
-        if len(articles) >= 10:  # for the sake of me free api limit
+        if len(articles) >= 20:  # for the sake of me free api limit
             break
         a_tag = card.find('a', class_='JtKRv')
         if not a_tag or not a_tag.has_attr('href'):
@@ -46,6 +46,7 @@ def scan_google_news_live(keyword):
 def filter_headlines_with_gemini(headlines, keyword):
     genai.configure(api_key=get_api_key())
     model = genai.GenerativeModel("models/gemini-2.5-flash-lite-preview-06-17")
+    
 
     prompt = (
         f"Given the following list of news headlines, return only those that are clearly related to the keyword '{keyword}'. "
@@ -163,11 +164,13 @@ if __name__ == "__main__":
         print(f"searching for '{keyword}' on gnews")
         google_results = scan_google_news_live(keyword)
         print(f"before {len(google_results)}")
-        
         print("filtering articles")
-        filtered_results = filter_headlines_with_gemini(google_results, keyword)
-        print(f"after {len(filtered_results)} ")
-
+        print(google_results[0]['headline'])
+        x = [[i['headline']] for i in google_results]
+        print(x)
+        #filtered_results = filter_headlines_with_gemini(google_results, keyword)
+        #print(f"after {len(filtered_results)} ")
+        """
         print("\n fetching contents")
         articles_with_content = []
         for i, article in enumerate(filtered_results, 1):
@@ -182,16 +185,9 @@ if __name__ == "__main__":
         
         print("\ncreating summary")
         summary = summarize_articles_with_gemini(articles_with_content, keyword)
-      
-        print(f"""
-              NEWS SUMMARY FOR '{keyword.upper()}'
-              """)
-        print(summary)
-        
-        save_summary_to_file(summary, keyword)
 
+        save_summary_to_file(summary, keyword)
+        """
     except Exception as e:
         print(f"error {e}")
-    
-    save_summary_to_file(summary, keyword)
 
